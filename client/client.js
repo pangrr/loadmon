@@ -4,47 +4,10 @@ const chartDataWindowWithInMinutes = 10;
 const alertTimeFormat = 'H:m:s';
 
 // chart
-const chart = new Chart(document.getElementById('chart'), {
-  type: 'line',
-  data: {
-    datasets: [{
-      borderColor: 'rgba(51, 153, 255, 0.6)',
-      backgroundColor: 'rgba(51, 153, 255, 0.2)',
-      data: []
-    }]
-  },
-  options: {
-    aspectRatio: 3,
-    legend: {
-      display: false
-    },
-    scales: {
-      xAxes: [{
-        type: 'time',
-        time: {
-          unit: 'minute',
-          displayFormats: {
-            minute: 'H:m'
-          }
-        }
-      }],
-      yAxes: [{
-        ticks: {
-          suggestedMin: 0,
-          suggestedMax: 1
-        },
-        scaleLabel: {
-          display: true,
-          labelString: 'Load Average'
-        }
-      }]
-    }
-  }
-});
+const chart = new Chart(document.getElementById('chart'), getChartConfig());
 
 // websocket
 const socket = new WebSocket('ws://localhost:3001/');
-
 socket.onmessage = event => {
   const message = JSON.parse(event.data);
   if (message.loadAvgs) {
@@ -81,4 +44,45 @@ function updateAlertList(alerts) {
 
   // limit list length
   while (alertList.childNodes.length > 100) alertList.removeChild(alertList.childNodes[alertList.childNodes.length - 1]);
+}
+
+
+function getChartConfig() {
+  return {
+    type: 'line',
+    data: {
+      datasets: [{
+        borderColor: 'rgba(51, 153, 255, 0.6)',
+        backgroundColor: 'rgba(51, 153, 255, 0.2)',
+        data: []
+      }]
+    },
+    options: {
+      aspectRatio: 3,
+      legend: {
+        display: false
+      },
+      scales: {
+        xAxes: [{
+          type: 'time',
+          time: {
+            unit: 'minute',
+            displayFormats: {
+              minute: 'H:m'
+            }
+          }
+        }],
+        yAxes: [{
+          ticks: {
+            suggestedMin: 0,
+            suggestedMax: 1
+          },
+          scaleLabel: {
+            display: true,
+            labelString: 'Load Average'
+          }
+        }]
+      }
+    }
+  };
 }
