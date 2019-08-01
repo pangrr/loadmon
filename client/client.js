@@ -8,8 +8,8 @@ const chart = new Chart(document.getElementById('chart'), {
   type: 'line',
   data: {
     datasets: [{
-      borderColor: 'rgba(32, 194, 14, 0.6)',
-      backgroundColor: 'rgba(32, 194, 14, 0.2)',
+      borderColor: 'rgba(51, 153, 255, 0.6)',
+      backgroundColor: 'rgba(51, 153, 255, 0.2)',
       data: []
     }]
   },
@@ -78,4 +78,7 @@ function updateAlertList(alerts) {
     if (alertList.childNodes.length > 0) alertList.insertBefore(alertItem, alertList.childNodes[0]);
     else alertList.appendChild(alertItem);
   });
+
+  // limit list length
+  while (alertList.childNodes.length > 100) alertList.removeChild(alertList.childNodes[alertList.childNodes.length - 1]);
 }
