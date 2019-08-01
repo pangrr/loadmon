@@ -1,11 +1,29 @@
 <html>
   <head>
     <style>
+      #container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      #alerts-container {
+        overflow: hidden;
+        overflow-y: scroll;
+      }
+      .alert {
+        color: orange;
+      }
+      .alert-recover {
+        color: limegreen;
+      }
     </style>
   </head>
   <body>
-    <div style="width:100%;height:400px;">
+    <div id="container">
       <canvas id="chart"></canvas>
+      <div id="alerts-container">
+        <ul id="alerts"></ul>
+      </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js"></script>

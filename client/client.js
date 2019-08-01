@@ -1,3 +1,9 @@
+// config
+const loadPrecision = 2;
+const chartDataWindowWithInMinutes = 10;
+const alertTimeFormat = 'H:m:s';
+
+// chart
 const chart = new Chart(document.getElementById('chart'), {
   type: 'line',
   data: {
@@ -8,6 +14,7 @@ const chart = new Chart(document.getElementById('chart'), {
     }]
   },
   options: {
+    aspectRatio: 3,
     legend: {
       display: false
     },
@@ -22,6 +29,10 @@ const chart = new Chart(document.getElementById('chart'), {
         }
       }],
       yAxes: [{
+        ticks: {
+          suggestedMin: 0,
+          suggestedMax: 1
+        },
         scaleLabel: {
           display: true,
           labelString: 'Load Average'
@@ -31,16 +42,40 @@ const chart = new Chart(document.getElementById('chart'), {
   }
 });
 
+// websocket
 const socket = new WebSocket('ws://localhost:3001/');
 
 socket.onmessage = event => {
-  const chartData = chart.data.datasets[0].data;
   const message = JSON.parse(event.data);
   if (message.loadAvgs) {
-    message.loadAvgs.forEach(dataPoint => chartData.push({ x: moment(dataPoint.time), y: dataPoint.load }));
-    while (chartData.length > 0 && chartData[0].x.isBefore(moment().subtract(10, 'minutes'))) chartData.shift();
-    chart.update();
+    updateChartData(chart, message.loadAvgs);
   } else if (message.alerts) {
-    message.alerts.forEach(alert => console.log(alert.time, alert.load));
+    updateAlertList(message.alerts);
   }
-} 
+}
+
+
+// utils
+function updateChartData(chart, loadAvgs) {
+  const chartData = chart.data.datasets[0].data;
+  loadAvgs.forEach(dataPoint => chartData.push({ x: moment(dataPoint.time), y: dataPoint.load.toFixed(loadPrecision) }));
+  while (chartData.length > 0 && chartData[0].x.isBefore(moment().subtract(chartDataWindowWithInMinutes, 'minutes'))) chartData.shift();
+  chart.update();
+}
+
+
+function updateAlertList(alerts) {
+  const alertList = document.getElementById('alerts');
+  alerts.forEach(alert => {
+    const alertItem = document.createElement('li');
+    if (typeof alert.load === 'number') {
+      alertItem.setAttribute('class', 'alert');
+      alertItem.appendChild(document.createTextNode(`High load generated an alert - load = ${alert.load.toFixed(loadPrecision)}, triggered at ${moment(alert.time).format(alertTimeFormat)}`));
+    } else {
+      alertItem.setAttribute('class', 'alert-recover');
+      alertItem.appendChild(document.createTextNode(`High load alert was recovered at ${moment(alert.time).format(alertTimeFormat)}`));
+    }
+    if (alertList.childNodes.length > 0) alertList.insertBefore(alertItem, alertList.childNodes[0]);
+    else alertList.appendChild(alertItem);
+  });
+}
