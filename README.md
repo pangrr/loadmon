@@ -16,6 +16,8 @@
   - Mark alerts in the chart.
   - Click an alert to go to the mark of that alert in the chart.
 - Time travel: show both load average and alerts on a given time range. This helps investigating historical issues. This also helps users share snapshots of the app.
+- Color the chart area above alert threshold with similar color as alert message.
+
 ## Code
 - Use typescript to define and guard data types.
 
