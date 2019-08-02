@@ -1,7 +1,7 @@
 // config
-const loadPrecision = 2;
-const chartDataWindowWithInMinutes = 10;
-const alertTimeFormat = 'H:m:s';
+const loadDisplayPrecision = 2;
+const chartWIndowSizeInMinutes = 10;
+const alertTimeFormat = 'HH:mm:ss';
 
 // chart
 const chart = new Chart(document.getElementById('chart'), getChartConfig());
@@ -10,8 +10,9 @@ const chart = new Chart(document.getElementById('chart'), getChartConfig());
 const socket = new WebSocket('ws://localhost:3001/');
 socket.onmessage = event => {
   const message = JSON.parse(event.data);
-  if (message.loadAvgs) {
-    updateChartData(chart, message.loadAvgs);
+  if (message.sysstats) {
+    updateChartData(chart, message.sysstats);
+    if (message.sysstats.length > 0) updateSysstats(message.sysstats[message.sysstats.length - 1]);
   } else if (message.alerts) {
     updateAlertList(message.alerts);
   }
@@ -19,10 +20,16 @@ socket.onmessage = event => {
 
 
 // utils
-function updateChartData(chart, loadAvgs) {
+function updateSysstats(sysstats) {
+  document.getElementById('load').textContent = sysstats.load.toFixed(loadDisplayPrecision);
+  document.getElementById('freemem').textContent = formatBytes(sysstats.freemem);
+  document.getElementById('freedisk').textContent = formatBytes(sysstats.freedisk);
+}
+
+function updateChartData(chart, sysstats) {
   const chartData = chart.data.datasets[0].data;
-  loadAvgs.forEach(dataPoint => chartData.push({ x: moment(dataPoint.time), y: dataPoint.load.toFixed(loadPrecision) }));
-  while (chartData.length > 0 && chartData[0].x.isBefore(moment().subtract(chartDataWindowWithInMinutes, 'minutes'))) chartData.shift();
+  sysstats.forEach(dataPoint => chartData.push({ x: moment(dataPoint.time), y: dataPoint.load.toFixed(loadDisplayPrecision) }));
+  while (chartData.length > 0 && chartData[0].x.isBefore(moment().subtract(chartWIndowSizeInMinutes, 'minutes'))) chartData.shift();
   chart.update();
 }
 
@@ -31,19 +38,19 @@ function updateAlertList(alerts) {
   const alertList = document.getElementById('alerts');
   alerts.forEach(alert => {
     const alertItem = document.createElement('li');
-    if (typeof alert.load === 'number') {
+    if (alert.type === 'highLoad') {
       alertItem.setAttribute('class', 'alert');
-      alertItem.appendChild(document.createTextNode(`High load generated an alert - load = ${alert.load.toFixed(loadPrecision)}, triggered at ${moment(alert.time).format(alertTimeFormat)}`));
-    } else {
+      alertItem.appendChild(document.createTextNode(`${moment(alert.time).format(alertTimeFormat)} high load alert, load = ${alert.load.toFixed(loadDisplayPrecision)}`));
+    } else if (alert.type === 'highLoadRecover') {
       alertItem.setAttribute('class', 'alert-recover');
-      alertItem.appendChild(document.createTextNode(`High load alert was recovered at ${moment(alert.time).format(alertTimeFormat)}`));
+      alertItem.appendChild(document.createTextNode(`${moment(alert.time).format(alertTimeFormat)} high load alert recovered`));
     }
     if (alertList.childNodes.length > 0) alertList.insertBefore(alertItem, alertList.childNodes[0]);
     else alertList.appendChild(alertItem);
   });
 
   // limit list length
-  while (alertList.childNodes.length > 100) alertList.removeChild(alertList.childNodes[alertList.childNodes.length - 1]);
+  while (alertList.childNodes.length > 200) alertList.removeChild(alertList.childNodes[alertList.childNodes.length - 1]);
 }
 
 
@@ -68,7 +75,7 @@ function getChartConfig() {
           time: {
             unit: 'minute',
             displayFormats: {
-              minute: 'H:m'
+              minute: 'HH:mm'
             }
           }
         }],
@@ -85,4 +92,17 @@ function getChartConfig() {
       }
     }
   };
+}
+
+
+function formatBytes (bytes) {
+  if (typeof bytes !== 'number' || isNaN(bytes) || bytes < 0) return;
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1000)), units.length - 1);
+  const value = Number(bytes / Math.pow(1000, exponent));
+  const unit = units[exponent];
+
+  return `${value.toFixed(1)} ${unit}`;
 }

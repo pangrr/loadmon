@@ -1,14 +1,11 @@
-// data
-const loadAvgs = [];
-const alerts = [];
 // config
-const historyLengthInMinutes = 10;
-const fetchLoadAvgFrequencyInSeconds = 10;
-const alertCoverageInMinutes = 2;
-const alertThreshold = 1;
-const alertCoverageInLoadAvgDataPoints = Math.floor(alertCoverageInMinutes * 60 / fetchLoadAvgFrequencyInSeconds);
+const sysstatsHistory = { lengthInMinutes: 100, entries: [] };
+const loadAlertHistory = { lengthInMinutes: 100, entries: [] };
+const sysstatsIntervalInSeconds = 10;
+const loadAlertWindowInMinutes = 2;
+const loadAlertThreshold = 1;
 
-const { updateLoadAvgs, checkAlert, addAlert } = require('./data.js');
+const { getSysstats, checkLoadAlert, updateHistory } = require('./sys-stats.js');
 
 
 // websocket
@@ -16,20 +13,21 @@ const ws = require('ws');
 const websocketServer = new ws.Server({ port: 3001 });
 
 websocketServer.on('connection', socket => {
-  socket.send(JSON.stringify({ loadAvgs }));
-  socket.send(JSON.stringify({ alerts }));
+  socket.send(JSON.stringify({ sysstats: sysstatsHistory.entries }));
+  socket.send(JSON.stringify({ alerts: loadAlertHistory.entries }));
 });
 
 setInterval(() => {
-  updateLoadAvgs(loadAvgs, historyLengthInMinutes);
-  websocketServer.clients.forEach(client => client.send(JSON.stringify({ loadAvgs: loadAvgs.slice(-1) })));
+  const sysstats = getSysstats();
+  updateHistory(sysstats, sysstatsHistory);
+  websocketServer.clients.forEach(client => client.send(JSON.stringify({ sysstats: [sysstats] })));
 
-  const alert = checkAlert(loadAvgs, alertCoverageInLoadAvgDataPoints, alertThreshold, alerts);
+  const alert = checkLoadAlert(sysstatsHistory, loadAlertHistory, loadAlertWindowInMinutes, loadAlertThreshold);
   if (alert) {
-    addAlert(alert, alerts, historyLengthInMinutes);
+    updateHistory(alert, loadAlertHistory);
     websocketServer.clients.forEach(client => client.send(JSON.stringify({ alerts: [alert] })));
   }
-}, fetchLoadAvgFrequencyInSeconds * 1000);
+}, sysstatsIntervalInSeconds * 1000);
 
 
 // http server

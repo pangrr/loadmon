@@ -1,26 +1,53 @@
 const assert = require('assert');
 
 describe('The logic to generate alerts should be correct.', () => {
-  const { checkAlert } = require('./data.js');
+  const { checkLoadAlert } = require('./sys-stats.js');
 
-  it('should return undefined if load averages data points are not enough', () => {
-    assert.equal(checkAlert([{ time: 0, load: 0 }], 2, 1, []), undefined);
+  it('should return undefined if there is no system statistics in the alert window', () => {
+    const sysStatsHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 3 * 60 * 1000, load: 2 }, { time: Date.now() - 2 * 60 * 1000, load: 3 }] };
+    const alertHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 1000, load: 2 }] };
+    const alertWindowInMinutes = 1;
+    const alertThreshold = 1;
+
+    const alert = checkLoadAlert(sysStatsHistory, alertHistory, alertWindowInMinutes, alertThreshold);
+
+    assert.equal(alert, undefined);
   });
 
-  it('should return an alert if the average load averages is above threshold', () => {
-    const alert = checkAlert([{ time: 0, load: 1 }, { time: 1, load: 2 }], 2, 1, []);
-    assert.equal(alert.load, 1.5);
+  it('should return a high load alert if the average load averages is above threshold', () => {
+    const sysStatsHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 3 * 60 * 1000, load: 2 }, { time: Date.now() - 2 * 60 * 1000, load: 3 }] };
+    const alertHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 1000, load: 2 }] };
+    const alertWindowInMinutes = 5;
+    const alertThreshold = 1;
+
+    const alert = checkLoadAlert(sysStatsHistory, alertHistory, alertWindowInMinutes, alertThreshold);
+
+    assert.equal(alert.type, 'highLoad');
+    assert.equal(alert.load, 2.5);
     assert.equal(alert.time - Date.now() < 1000, true);
   });
 
-  it('should return an alert recover if the average load averages is below threshold and the last item in the alert list is an alert', () => {
-    const alert = checkAlert([{ time: 0, load: 1 }, { time: 1, load: 0 }], 2, 1, [{ time: 0, load: 1.5 }]);
+  it('should return a high load alert recover if the average load averages is below threshold and there is an immediately previous high load alert', () => {
+    const sysStatsHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 3 * 60 * 1000, load: 2 }, { time: Date.now() - 2 * 60 * 1000, load: 3 }] };
+    const alertHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 1000, load: 2 }] };
+    const alertWindowInMinutes = 5;
+    const alertThreshold = 4;
+
+    const alert = checkLoadAlert(sysStatsHistory, alertHistory, alertWindowInMinutes, alertThreshold);
+
+    assert.equal(alert.type, 'highLoadRecover');
     assert.equal(alert.load, undefined);
     assert.equal(alert.time - Date.now() < 1000, true);
   });
 
-  it('should return undefined if the average load averages is below threshold and the last item in the alert list is not an alert', () => {
-    assert.equal(checkAlert([{ time: 0, load: 1 }, { time: 1, load: 0 }], 2, 1, [{ time: 0 }]), undefined);
-    assert.equal(checkAlert([{ time: 0, load: 1 }, { time: 1, load: 0 }], 2, 1, []), undefined);
+  it('should return undefined if the average load averages is below threshold and there is no immediately previous high load alert', () => {
+    const sysStatsHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 3 * 60 * 1000, load: 2 }, { time: Date.now() - 2 * 60 * 1000, load: 3 }] };
+    const alertHistory = { lengthInMinutes: 10, entries: [{ time: Date.now() - 1000 }] };
+    const alertWindowInMinutes = 5;
+    const alertThreshold = 4;
+
+    const alert = checkLoadAlert(sysStatsHistory, alertHistory, alertWindowInMinutes, alertThreshold);
+
+    assert.equal(alert, undefined);
   });
 });
